@@ -12,7 +12,7 @@ export class DashboardController {
         return;
       }
 
-      const stats = await dashboardService.getStats(req.user.tenantId);
+      const stats = await dashboardService.getStats(req.user.tenantId, req.user.role, req.user.userId);
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: 'Failed to get dashboard stats' });
@@ -26,7 +26,7 @@ export class DashboardController {
         return;
       }
 
-      const countries = await dashboardService.getCountryStats(req.user.tenantId);
+      const countries = await dashboardService.getCountryStats(req.user.tenantId, req.user.role, req.user.userId);
       res.json(countries);
     } catch (error) {
       res.status(500).json({ error: 'Failed to get country stats' });
@@ -41,7 +41,7 @@ export class DashboardController {
       }
 
       const limit = parseInt(req.query.limit as string) || 10;
-      const activity = await dashboardService.getRecentActivity(req.user.tenantId, limit);
+      const activity = await dashboardService.getRecentActivity(req.user.tenantId, limit, req.user.role, req.user.userId);
       res.json(activity);
     } catch (error) {
       res.status(500).json({ error: 'Failed to get recent activity' });

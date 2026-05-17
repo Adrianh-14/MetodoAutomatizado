@@ -7,7 +7,9 @@ export class CookiesService {
     tenantId: string,
     page: number = 1,
     limit: number = 50,
-    filters: { country?: string; status?: string; search?: string }
+    filters: { country?: string; status?: string; search?: string },
+    role?: string,
+    userId?: string
   ) {
     const where: any = { tenantId };
 
@@ -19,6 +21,17 @@ export class CookiesService {
     }
     if (filters.search) {
       where.cookieData = { contains: filters.search };
+    }
+
+    if (role === 'user') {
+      if (filters.status === 'downloaded') {
+        where.downloadedBy = userId;
+      } else if (!filters.status) {
+        where.OR = [
+          { status: 'available' },
+          { downloadedBy: userId }
+        ];
+      }
     }
 
     const [cookies, total] = await Promise.all([

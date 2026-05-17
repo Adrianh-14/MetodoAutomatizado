@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const CookiesPage = () => {
+  const { user } = useAuth();
   const [cookies, setCookies] = useState([]);
   const [countries, setCountries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -118,9 +120,11 @@ const CookiesPage = () => {
           <p className="page-subtitle">Gestionar y extraer cadenas de cookies encriptadas</p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button onClick={() => setShowUpload(true)} className="btn btn-cyan">
-            + INYECTAR_DATOS
-          </button>
+          {user?.role !== 'user' && (
+            <button onClick={() => setShowUpload(true)} className="btn btn-cyan">
+              + INYECTAR_DATOS
+            </button>
+          )}
           <button onClick={() => setShowDownload(true)} className="btn btn-primary">
             EXTRAER_DATOS
           </button>

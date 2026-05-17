@@ -22,7 +22,7 @@ export class CookiesController {
         country,
         status,
         search,
-      });
+      }, req.user.role, req.user.userId);
 
       res.json(result);
     } catch (error) {

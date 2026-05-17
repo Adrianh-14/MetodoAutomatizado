@@ -4,6 +4,8 @@ import authRoutes from './routes/auth.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import cookiesRoutes from './routes/cookies.routes';
 import { errorHandler } from './middleware/errorHandler';
+import formsRoutes from './routes/forms.routes';
+import facebookRoutes from './routes/facebook.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -24,10 +26,15 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
+import usersRoutes from './routes/users.routes';
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/cookies', cookiesRoutes);
+app.use('/api/users', usersRoutes);
+app.use('/api/forms', formsRoutes);
+app.use('/api/facebook', facebookRoutes);
 
 // Error handler
 app.use(errorHandler);

@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const DashboardPage = () => {
+  const { user } = useAuth();
+  const isUser = user?.role === 'user';
   const [stats, setStats] = useState(null);
   const [countries, setCountries] = useState([]);
   const [activity, setActivity] = useState([]);
@@ -57,7 +60,7 @@ const DashboardPage = () => {
       <div className="stats-grid">
         <div className="card stat-card">
           <div className="stat-value">{stats?.totalCookies?.toLocaleString()}</div>
-          <div className="stat-label">TOTAL DE COOKIES EN BD</div>
+          <div className="stat-label">{isUser ? 'MIS COOKIES' : 'TOTAL DE COOKIES EN BD'}</div>
         </div>
         <div className="card stat-card cyan">
           <div className="stat-value">{stats?.totalCountries?.toLocaleString()}</div>
@@ -65,11 +68,11 @@ const DashboardPage = () => {
         </div>
         <div className="card stat-card amber">
           <div className="stat-value">{stats?.downloadedCookies?.toLocaleString()}</div>
-          <div className="stat-label">COOKIES EXTRAÍDAS</div>
+          <div className="stat-label">{isUser ? 'MIS DESCARGAS' : 'COOKIES EXTRAÍDAS'}</div>
         </div>
         <div className="card stat-card magenta">
           <div className="stat-value">{stats?.todayCookies?.toLocaleString()}</div>
-          <div className="stat-label">NUEVOS REGISTROS (HOY)</div>
+          <div className="stat-label">{isUser ? 'MIS DESCARGAS (HOY)' : 'NUEVOS REGISTROS (HOY)'}</div>
         </div>
       </div>
 
@@ -92,7 +95,7 @@ const DashboardPage = () => {
 
         <div className="card">
           <div className="card-header">
-            <h2 className="card-title">EXTRACCIONES RECIENTES</h2>
+            <h2 className="card-title">{isUser ? 'MIS EXTRACCIONES RECIENTES' : 'EXTRACCIONES RECIENTES'}</h2>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {activity.length === 0 ? (

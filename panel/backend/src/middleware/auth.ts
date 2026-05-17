@@ -28,7 +28,7 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
 }
 
 export function adminOnly(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  if (req.user?.role !== 'admin') {
+  if (req.user?.role !== 'admin' && req.user?.role !== 'superadmin') {
     res.status(403).json({ error: 'Admin access required' });
     return;
   }

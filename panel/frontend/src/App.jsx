@@ -6,6 +6,8 @@ import MainLayout from './components/Layout/MainLayout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import CookiesPage from './pages/CookiesPage';
+import UsersPage from './pages/UsersPage';
+import FormsPage from './pages/FormsPage';
 
 function App() {
   return (
@@ -18,6 +20,8 @@ function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="cookies" element={<CookiesPage />} />
+            <Route path="users" element={<UsersPage />} />
+            <Route path="forms" element={<FormsPage />} />
           </Route>
           
           <Route path="*" element={<Navigate to="/login" replace />} />
