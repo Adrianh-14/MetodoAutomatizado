@@ -8,6 +8,7 @@ import DashboardPage from './pages/DashboardPage';
 import CookiesPage from './pages/CookiesPage';
 import UsersPage from './pages/UsersPage';
 import FormsPage from './pages/FormsPage';
+import AutomationPage from './pages/AutomationPage';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
             <Route path="cookies" element={<CookiesPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="forms" element={<FormsPage />} />
+            <Route path="automation" element={<AutomationPage />} />
           </Route>
           
           <Route path="*" element={<Navigate to="/login" replace />} />

