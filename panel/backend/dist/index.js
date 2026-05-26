@@ -48,8 +48,22 @@ const users_routes_1 = __importDefault(require("./routes/users.routes"));
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 3001;
 async function main() {
+    const allowedOrigins = [
+        'http://localhost:5173',
+        'http://localhost:3000',
+        'https://metodo-automatizado.vercel.app',
+        'https://metodo-automatizado-t38r-kazv7j5bv-adrien1138gmailcoms-projects.vercel.app',
+        ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+    ];
     app.use((0, cors_1.default)({
-        origin: true,
+        origin: (origin, callback) => {
+            if (!origin || allowedOrigins.includes(origin)) {
+                callback(null, true);
+            }
+            else {
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
         credentials: true,
     }));
     app.use(express_1.default.json({ limit: '50mb' }));

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:3001/api',
+  baseURL: 'https://metodo-automatizado-t38r-kazv7j5bv-adrien1138gmailcoms-projects.vercel.app/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -26,7 +26,7 @@ api.interceptors.response.use(
 
       if (refreshToken) {
         try {
-          const response = await axios.post('http://localhost:3001/api/auth/refresh', {
+          const response = await axios.post('https://metodo-automatizado-t38r-kazv7j5bv-adrien1138gmailcoms-projects.vercel.app/api/auth/refresh', {
             refreshToken,
           });
 

