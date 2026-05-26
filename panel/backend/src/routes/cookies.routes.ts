@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { CookiesController } from '../controllers/cookies.controller';
 import { authMiddleware } from '../middleware/auth';
 
-const router = Router();
+const router: Router = Router();
 const controller = new CookiesController();
 
 router.use(authMiddleware);

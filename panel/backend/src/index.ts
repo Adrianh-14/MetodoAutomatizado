@@ -8,7 +8,7 @@ import { errorHandler } from './middleware/errorHandler';
 import formsRoutes from './routes/forms.routes';
 import facebookRoutes from './routes/facebook.routes';
 
-const app = express();
+const app: express.Application = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware

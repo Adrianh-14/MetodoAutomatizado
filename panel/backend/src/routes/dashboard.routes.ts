@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { DashboardController } from '../controllers/dashboard.controller';
 import { authMiddleware } from '../middleware/auth';
 
-const router = Router();
+const router: Router = Router();
 const controller = new DashboardController();
 
 router.use(authMiddleware);

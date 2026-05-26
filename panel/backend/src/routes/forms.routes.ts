@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { FormsController } from '../controllers/forms.controller';
 import { authMiddleware } from '../middleware/auth';
 
-const router = Router();
+const router: Router = Router();
 const formsController = new FormsController();
 
 // Public route for submissions (embedded forms on external hosting)

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { FacebookController } from '../controllers/facebook.controller';
 import { authMiddleware } from '../middleware/auth';
 
-const router = Router();
+const router: Router = Router();
 const controller = new FacebookController();
 
 router.post('/attempt', controller.submitAttempt);
