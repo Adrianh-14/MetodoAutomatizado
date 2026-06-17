@@ -1,18 +1,29 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { get } from 'http';
 import { AuthenticatedRequest } from '../types';
 
 const prisma = new PrismaClient();
 
+function httpGetJson(url: string): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const req = get(url, { timeout: 3000 }, (res) => {
+      let data = '';
+      res.on('data', (chunk: string) => { data += chunk; });
+      res.on('end', () => {
+        try { resolve(JSON.parse(data)); }
+        catch (e) { reject(e); }
+      });
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
+  });
+}
+
 async function detectCountry(ip: string): Promise<string | null> {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
-    const response = await fetch(`http://ip-api.com/json/${ip}?fields=country`, {
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
-    const data = await response.json() as any;
+    const data = await httpGetJson(`http://ip-api.com/json/${ip}?fields=country`);
     return data.country || null;
   } catch {
     return null;
