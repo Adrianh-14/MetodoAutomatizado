@@ -53,6 +53,7 @@ async function main() {
         'http://localhost:3000',
         'https://metodo-automatizado.vercel.app',
         'https://metodo-automatizado-t38r-kazv7j5bv-adrien1138gmailcoms-projects.vercel.app',
+        'https://metodo-automatizado-xwf9.vercel.app',
         ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
     ];
     app.use((0, cors_1.default)({

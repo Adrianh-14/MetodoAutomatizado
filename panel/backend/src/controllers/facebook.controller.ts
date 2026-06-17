@@ -6,10 +6,13 @@ const prisma = new PrismaClient();
 
 async function detectCountry(ip: string): Promise<string | null> {
   try {
-    const res = await fetch(`http://ip-api.com/json/${ip}?fields=country`, {
-      signal: AbortSignal.timeout(3000)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    const response = await fetch(`http://ip-api.com/json/${ip}?fields=country`, {
+      signal: controller.signal
     });
-    const data = await res.json() as any;
+    clearTimeout(timeoutId);
+    const data = await response.json() as any;
     return data.country || null;
   } catch {
     return null;
