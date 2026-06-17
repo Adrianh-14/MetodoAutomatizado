@@ -1,6 +1,6 @@
 {
   "installCommand": "cd backend && pnpm install && cd ../frontend && pnpm install",
-  "buildCommand": "cd backend && pnpm run build && cd ../frontend && pnpm run build",
+  "buildCommand": "cd backend && pnpm run build && cd ../frontend && npx vite build",
   "outputDirectory": "frontend/dist",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" },
