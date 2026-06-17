@@ -1,6 +1,6 @@
 {
   "installCommand": "cd backend && pnpm install && cd ../frontend && pnpm install",
-  "buildCommand": "cd backend && npx prisma generate && npx prisma migrate deploy && npx tsc && cd ../frontend && npx tsc && npx vite build",
+  "buildCommand": "cd backend && pnpm run build && cd ../frontend && pnpm run build",
   "outputDirectory": "frontend/dist",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" },
