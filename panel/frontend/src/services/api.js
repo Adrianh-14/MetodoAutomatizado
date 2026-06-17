@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'https://metodo-automatizado.vercel.app/api',
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -26,7 +26,7 @@ api.interceptors.response.use(
 
       if (refreshToken) {
         try {
-          const response = await axios.post('https://metodo-automatizado.vercel.app/api/auth/refresh', {
+          const response = await axios.post('/api/auth/refresh', {
             refreshToken,
           });
 
