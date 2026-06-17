@@ -27,11 +27,12 @@ async function main() {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS'));
+        callback(null, false);
       }
     },
     credentials: true,
   }));
+  app.options('*', cors());
   app.use(express.json({ limit: '50mb' }));
 
   app.get('/api/health', (_req, res) => {
