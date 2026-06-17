@@ -23,16 +23,9 @@ async function main() {
   ];
 
   app.use(cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(null, false);
-      }
-    },
+    origin: allowedOrigins,
     credentials: true,
   }));
-  app.options('*', cors());
   app.use(express.json({ limit: '50mb' }));
 
   app.get('/api/health', (_req, res) => {
