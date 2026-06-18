@@ -46,7 +46,7 @@ if (process.env.VERCEL) {
 } else {
   import('http-proxy-middleware').then(({ createProxyMiddleware }) => {
     app.use('/automation', createProxyMiddleware({
-      target: 'http://localhost:3002',
+      target: process.env.AUTOMATION_URL || 'http://localhost:3002',
       changeOrigin: true,
       pathRewrite: { '^/automation': '' },
     }) as RequestHandler);

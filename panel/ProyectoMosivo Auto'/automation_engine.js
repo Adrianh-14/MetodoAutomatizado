@@ -20,12 +20,14 @@ class AutomationEngine {
         const posX = col * (width + 10); 
         const posY = row * 50;
 
+        const isDocker = process.env.DISPLAY === ':99';
         const browser = await chromium.launch({
             headless: false,
             args: [
                 `--window-size=${width},${height}`,
                 `--window-position=${posX},${posY}`,
-                '--disable-blink-features=AutomationControlled' // OCULTAR RASTRO DE BOT
+                '--disable-blink-features=AutomationControlled',
+                ...(isDocker ? ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] : [])
             ]
         });
 
