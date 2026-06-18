@@ -8,6 +8,7 @@ import { errorHandler } from './middleware/errorHandler';
 import formsRoutes from './routes/forms.routes';
 import facebookRoutes from './routes/facebook.routes';
 import usersRoutes from './routes/users.routes';
+import automationRoutes from './routes/automation.routes';
 
 const app: express.Application = express();
 
@@ -40,6 +41,7 @@ app.use('/api/forms', formsRoutes);
 app.use('/api/facebook', facebookRoutes);
 
 if (process.env.VERCEL) {
+  app.use('/automation', automationRoutes);
   app.use(errorHandler);
 } else {
   import('http-proxy-middleware').then(({ createProxyMiddleware }) => {
