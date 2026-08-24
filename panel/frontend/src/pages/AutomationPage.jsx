@@ -13,10 +13,21 @@ const AutomationPage = () => {
   useEffect(() => { checkStatus(); }, []);
 
   const api = async (endpoint, options = {}) => {
+    const accessToken = localStorage.getItem('accessToken');
     const res = await fetch(`/automation/api/v1/${endpoint}`, {
-      headers: { 'Content-Type': 'application/json' },
       ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...options.headers,
+      },
     });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `HTTP ${res.status}`);
+    }
+
     return res.json();
   };
 

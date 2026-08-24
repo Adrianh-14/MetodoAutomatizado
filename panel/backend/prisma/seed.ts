@@ -34,6 +34,15 @@ function generateFakeCookie(): string {
 async function main() {
   console.log('🌱 Seeding MillonesGang database...');
 
+  const adminEmail = (process.env.INITIAL_ADMIN_EMAIL || 'admin@example.com').trim().toLowerCase();
+  const adminPassword = process.env.INITIAL_ADMIN_PASSWORD;
+  const adminName = process.env.INITIAL_ADMIN_NAME || 'Administrador';
+  const seedDemoData = process.env.SEED_DEMO_DATA === 'true';
+
+  if (!adminPassword || adminPassword.length < 12) {
+    throw new Error('INITIAL_ADMIN_PASSWORD must contain at least 12 characters');
+  }
+
   // Create default tenant
   const tenant = await prisma.tenant.upsert({
     where: { slug: 'millonesgang' },
@@ -47,15 +56,15 @@ async function main() {
   console.log(`✅ Tenant created: ${tenant.name} (${tenant.id})`);
 
   // Create admin user
-  const hashedPassword = await bcrypt.hash('admin123', 12);
+  const hashedPassword = await bcrypt.hash(adminPassword, 12);
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@millonesgang.com' },
+    where: { email: adminEmail },
     update: {},
     create: {
       tenantId: tenant.id,
-      email: 'admin@millonesgang.com',
+      email: adminEmail,
       passwordHash: hashedPassword,
-      name: 'Admin MillonesGang',
+      name: adminName,
       role: 'admin',
       isActive: true,
     },
@@ -65,7 +74,7 @@ async function main() {
   // Create sample cookies
   const existingCount = await prisma.cookie.count({ where: { tenantId: tenant.id } });
   
-  if (existingCount === 0) {
+  if (seedDemoData && existingCount === 0) {
     const cookies = [];
     const totalCookies = 500;
 
@@ -88,8 +97,10 @@ async function main() {
 
     await prisma.cookie.createMany({ data: cookies });
     console.log(`✅ ${totalCookies} sample cookies created`);
-  } else {
+  } else if (seedDemoData) {
     console.log(`⏭️ Cookies already exist (${existingCount}), skipping...`);
+  } else {
+    console.log('⏭️ Demo cookie generation disabled');
   }
 
   console.log('🎉 Seed completed!');

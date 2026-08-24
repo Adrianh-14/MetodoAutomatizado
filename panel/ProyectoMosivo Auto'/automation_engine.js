@@ -1,4 +1,5 @@
 const { chromium } = require('playwright');
+const path = require('path');
 
 /**
  * Motor de automatización optimizado.
@@ -83,7 +84,11 @@ class AutomationEngine {
                 console.log(`[!] Puede ser un CAPTCHA, un código de correo o un bloqueo. Tienes 60 segundos.`);
                 
                 // Intentamos capturar pantalla para diagnóstico
-                await page.screenshot({ path: `ERROR_PERFIL_${perfil.id}.png` }).catch(() => {});
+                const screenshotPath = path.join(
+                    process.env.AUTOMATION_DATA_DIR || __dirname,
+                    `ERROR_PERFIL_${perfil.id}.png`
+                );
+                await page.screenshot({ path: screenshotPath }).catch(() => {});
 
                 try {
                     // Esperamos a que el usuario lo resuelva (detectamos cuando aparece el buscador)

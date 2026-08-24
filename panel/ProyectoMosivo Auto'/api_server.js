@@ -1,9 +1,20 @@
 const express = require('express');
 const AutomationEngine = require('./automation_engine');
-const perfiles = require('./config.json');
 
 const path = require('path');
 const fs = require('fs');
+
+const DATA_DIR = process.env.AUTOMATION_DATA_DIR || path.join(__dirname, 'data');
+const CONFIG_PATH = process.env.PROFILE_DATA_FILE || path.join(DATA_DIR, 'config.json');
+
+fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
+if (!fs.existsSync(CONFIG_PATH)) {
+    fs.writeFileSync(CONFIG_PATH, '[]', 'utf8');
+}
+
+function readProfiles() {
+    return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+}
 
 const app = express();
 // Soporte para JSON y Texto Plano (para archivos TXT directos)
@@ -11,11 +22,21 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.text({ limit: '50mb' })); 
 app.use(express.static('public')); 
 
+app.use('/api/v1', (req, res, next) => {
+    if (req.method === 'GET' && req.path === '/status') return next();
+
+    const expectedKey = process.env.AUTOMATION_API_KEY;
+    if (!expectedKey) {
+        return res.status(503).json({ success: false, error: 'Automation API is not configured' });
+    }
+    if (req.get('x-api-key') !== expectedKey) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    next();
+});
+
 // Variables globales para el estado
 let globalMessage = "Hola, este es un mensaje automático de estudio.";
-
-// Clave de acceso para tu API
-const API_KEY = "clave_estudio_mosivo_2024";
 
 /**
  * Endpoint para subir TXT de perfiles
@@ -52,7 +73,7 @@ app.post('/api/v1/upload-profiles', (req, res) => {
     }).filter(p => p !== null);
 
     // ESCRIBIR EL ARCHIVO DE INMEDIATO
-    fs.writeFileSync(path.join(__dirname, 'config.json'), JSON.stringify(newProfiles, null, 2), 'utf8');
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(newProfiles, null, 2), 'utf8');
     
     console.log(`\x1b[32m[SISTEMA] ¡EXITO! Se han guardado ${newProfiles.length} perfiles nuevos.\x1b[0m`);
     res.json({ success: true, count: newProfiles.length });
@@ -71,8 +92,13 @@ app.post('/api/v1/update-message', (req, res) => {
  * Ruta para disparar la automatización masiva en PARALELO
  */
 app.post('/api/v1/iniciar-automatizacion', async (req, res) => {
-    const { threads = 3 } = req.body; // Por defecto 3 hilos (ventanas)
-    const currentProfiles = JSON.parse(fs.readFileSync('./config.json', 'utf8'));
+    const requestedThreads = Number.parseInt(req.body?.threads, 10) || 3;
+    const threads = Math.max(1, Math.min(10, requestedThreads));
+    const currentProfiles = readProfiles();
+
+    if (currentProfiles.length === 0) {
+        return res.status(400).json({ success: false, error: 'No hay perfiles cargados' });
+    }
 
     console.log(`\n\x1b[35m>>> INICIANDO TRABAJO EN PARALELO: ${threads} VENTANAS\x1b[0m`);
     console.log(`>>> Total perfiles: ${currentProfiles.length}`);
@@ -105,17 +131,16 @@ app.post('/api/v1/iniciar-automatizacion', async (req, res) => {
  * Ruta de estado
  */
 app.get('/api/v1/status', (req, res) => {
-    res.json({ online: true, version: "1.0.0", profiles_loaded: perfiles.length });
+    res.json({ online: true, version: "1.0.0", profiles_loaded: readProfiles().length });
 });
 
-const PORT = 3002;
+const PORT = Number.parseInt(process.env.PORT, 10) || 3002;
 
 const server = app.listen(PORT, () => {
     console.log(`\n\x1b[36m**************************************************`);
     console.log(`*  SERVIDOR DE AUTOMATIZACIÓN ACTIVADO           *`);
     console.log(`*  Puerto: ${PORT}                                  *`);
-    console.log(`*  API Key: ${API_KEY}                 *`);
-    console.log(`*  URL: http://localhost:${PORT}               *`);
+    console.log(`*  URL interna: http://0.0.0.0:${PORT}         *`);
     console.log(`**************************************************\x1b[0m\n`);
 });
 

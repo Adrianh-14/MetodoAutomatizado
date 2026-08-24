@@ -1,3 +1,5 @@
 .env
 node_modules/
 dist/
+panel/ProyectoMosivo Auto'/config.json
+panel/ProyectoMosivo Auto'/ERROR_PERFIL_*.png

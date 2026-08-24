@@ -1,82 +1,103 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: millonesgang-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: millonesgang
-      POSTGRES_PASSWORD: M1ll0n3sG4ng_S3cur3!
-      POSTGRES_DB: millonesgang_db
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER:-metodo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en Dokploy}
+      POSTGRES_DB: ${POSTGRES_DB:-metodo_db}
+    expose:
+      - "5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U millonesgang -d millonesgang_db"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: millonesgang-api
     restart: unless-stopped
+    init: true
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://millonesgang:M1ll0n3sG4ng_S3cur3!@postgres:5432/millonesgang_db?schema=public
-      DATABASE_URL_UNPOOLED: postgresql://millonesgang:M1ll0n3sG4ng_S3cur3!@postgres:5432/millonesgang_db?schema=public
-      JWT_SECRET: m1ll0n3sg4ng_jwt_sup3r_s3cr3t_k3y_2025!
-      JWT_REFRESH_SECRET: m1ll0n3sg4ng_r3fr3sh_sup3r_s3cr3t_k3y_2025!
-      JWT_EXPIRES_IN: 15m
-      JWT_REFRESH_EXPIRES_IN: 7d
-      FRONTEND_URL: http://localhost
+      NODE_ENV: production
+      PORT: "3001"
+      DATABASE_URL: ${DATABASE_URL:?Define DATABASE_URL en Dokploy}
+      DATABASE_URL_UNPOOLED: ${DATABASE_URL_UNPOOLED:-${DATABASE_URL}}
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en Dokploy}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Define JWT_REFRESH_SECRET en Dokploy}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      FRONTEND_URL: ${FRONTEND_URL:?Define FRONTEND_URL en Dokploy}
       AUTOMATION_URL: http://automation:3002
-      PORT: 3001
-    ports:
-      - "3001:3001"
-    command: >
-      sh -c "npx prisma migrate deploy && npx prisma db seed && node dist/index.js"
+      AUTOMATION_API_KEY: ${AUTOMATION_API_KEY:?Define AUTOMATION_API_KEY en Dokploy}
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@example.com}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:?Define INITIAL_ADMIN_PASSWORD en Dokploy}
+      INITIAL_ADMIN_NAME: ${INITIAL_ADMIN_NAME:-Administrador}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+    expose:
+      - "3001"
+    command:
+      - sh
+      - -c
+      - npx --no-install prisma migrate deploy && npx --no-install prisma db seed && exec node dist/index.js
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   automation:
     build:
       context: "./ProyectoMosivo Auto'"
       dockerfile: Dockerfile
-    container_name: millonesgang-auto
     restart: unless-stopped
+    init: true
     environment:
-      PORT: 3002
-      DISPLAY: :99
-    ports:
-      - "3002:3002"
+      PORT: "3002"
+      DISPLAY: ":99"
+      PROFILE_DATA_FILE: /app/data/config.json
+      AUTOMATION_DATA_DIR: /app/data
+      AUTOMATION_API_KEY: ${AUTOMATION_API_KEY:?Define AUTOMATION_API_KEY en Dokploy}
+    expose:
+      - "3002"
+    shm_size: "1gb"
+    volumes:
+      - automation_data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3002/api/v1/status').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: millonesgang-web
     restart: unless-stopped
     depends_on:
-      - backend
-      - automation
-    ports:
-      - "80:80"
-
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: millonesgang-pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@millonesgang.com
-      PGADMIN_DEFAULT_PASSWORD: admin123
-    ports:
-      - "5050:80"
-    depends_on:
-      postgres:
+      backend:
         condition: service_healthy
+      automation:
+        condition: service_healthy
+    expose:
+      - "4173"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:4173/"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
-  pgdata:
+  postgres_data:
+  automation_data:

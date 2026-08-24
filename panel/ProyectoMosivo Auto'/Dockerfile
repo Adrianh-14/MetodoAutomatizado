@@ -1,23 +1,29 @@
-FROM mcr.microsoft.com/playwright:v1.60.0-focal
+FROM mcr.microsoft.com/playwright:v1.60.0-noble
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y xvfb && rm -rf /var/lib/apt/lists/*
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends xvfb \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY package.json ./
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 
 COPY api_server.js automation_engine.js bulk_runner.js terminal_runner.js ./
-COPY config.json ./
 COPY public ./public
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
-ENV PORT=3002
+RUN mkdir -p /app/data \
+    && chown -R pwuser:pwuser /app \
+    && chmod +x /usr/local/bin/docker-entrypoint.sh
+
+USER pwuser
+
+ENV PORT=3002 \
+    DISPLAY=:99 \
+    PROFILE_DATA_FILE=/app/data/config.json \
+    AUTOMATION_DATA_DIR=/app/data
+
 EXPOSE 3002
 
-RUN echo '#!/bin/bash' > /entrypoint.sh && \
-    echo 'Xvfb :99 -screen 0 1280x720x24 -ac +extension RANDR &' >> /entrypoint.sh && \
-    echo 'export DISPLAY=:99' >> /entrypoint.sh && \
-    echo 'node api_server.js' >> /entrypoint.sh && \
-    chmod +x /entrypoint.sh
-
-CMD ["/bin/bash", "/entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

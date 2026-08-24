@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+.env.*
+*.log
+Dockerfile*
+check_*.ts
+test_*.ts
+update_admin.ts
