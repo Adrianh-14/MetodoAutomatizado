@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import type { RequestHandler } from 'express';
-import { createProxyMiddleware } from 'http-proxy-middleware';
+import { createProxyMiddleware, fixRequestBody } from 'http-proxy-middleware';
 import authRoutes from './routes/auth.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import cookiesRoutes from './routes/cookies.routes';
@@ -11,6 +11,7 @@ import facebookRoutes from './routes/facebook.routes';
 import usersRoutes from './routes/users.routes';
 import automationRoutes from './routes/automation.routes';
 import { adminOnly, authMiddleware } from './middleware/auth';
+import { AuthenticatedRequest } from './types';
 
 const app: express.Application = express();
 
@@ -58,7 +59,20 @@ if (process.env.VERCEL) {
       target: process.env.AUTOMATION_URL || 'http://localhost:3002',
       changeOrigin: true,
       pathRewrite: { '^/automation': '' },
-      headers: { 'x-api-key': automationApiKey },
+      proxyTimeout: 120_000,
+      timeout: 120_000,
+      on: {
+        proxyReq: (proxyReq, req) => {
+          fixRequestBody(proxyReq, req);
+          const tenantId = (req as AuthenticatedRequest).user?.tenantId;
+          if (!tenantId) {
+            proxyReq.destroy(new Error('Missing authenticated tenant context'));
+            return;
+          }
+          proxyReq.setHeader('x-api-key', automationApiKey);
+          proxyReq.setHeader('x-tenant-id', tenantId);
+        },
+      },
     }) as RequestHandler
   );
 

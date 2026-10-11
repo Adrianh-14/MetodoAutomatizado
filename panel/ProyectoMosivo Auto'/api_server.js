@@ -1,160 +1,324 @@
 const express = require('express');
-const AutomationEngine = require('./automation_engine');
-
 const path = require('path');
 const fs = require('fs');
+const AutomationEngine = require('./automation_engine');
 
 const DATA_DIR = process.env.AUTOMATION_DATA_DIR || path.join(__dirname, 'data');
-const CONFIG_PATH = process.env.PROFILE_DATA_FILE || path.join(DATA_DIR, 'config.json');
+const LEGACY_CONFIG_PATH = process.env.PROFILE_DATA_FILE || path.join(DATA_DIR, 'config.json');
+const DEFAULT_MESSAGE = 'Hola, este es un mensaje automático de estudio.';
+const tenantStates = new Map();
 
-fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
-if (!fs.existsSync(CONFIG_PATH)) {
-    fs.writeFileSync(CONFIG_PATH, '[]', 'utf8');
+function getTenantDataDir(tenantId) {
+    return path.join(DATA_DIR, 'tenants', tenantId);
 }
 
-function readProfiles() {
-    return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+function getTenantConfigPath(tenantId) {
+    return path.join(getTenantDataDir(tenantId), 'config.json');
+}
+
+function ensureTenantStorage(tenantId) {
+    const tenantDataDir = getTenantDataDir(tenantId);
+    const configPath = getTenantConfigPath(tenantId);
+    fs.mkdirSync(tenantDataDir, { recursive: true });
+
+    if (!fs.existsSync(configPath)) {
+        const legacyTenantId = process.env.AUTOMATION_LEGACY_TENANT_ID;
+        if (legacyTenantId === tenantId && fs.existsSync(LEGACY_CONFIG_PATH)) {
+            fs.copyFileSync(LEGACY_CONFIG_PATH, configPath);
+        } else {
+            fs.writeFileSync(configPath, '[]', 'utf8');
+        }
+    }
+    return tenantDataDir;
+}
+
+function readProfiles(tenantId) {
+    ensureTenantStorage(tenantId);
+    const profiles = JSON.parse(fs.readFileSync(getTenantConfigPath(tenantId), 'utf8'));
+    return Array.isArray(profiles) ? profiles : [];
+}
+
+function writeProfiles(tenantId, profiles) {
+    ensureTenantStorage(tenantId);
+    fs.writeFileSync(getTenantConfigPath(tenantId), JSON.stringify(profiles, null, 2), 'utf8');
+}
+
+function getTenantState(tenantId) {
+    if (!tenantStates.has(tenantId)) {
+        tenantStates.set(tenantId, {
+            message: DEFAULT_MESSAGE,
+            running: false,
+            stopping: false,
+            runSequence: 0,
+            activeRunId: 0,
+            activeThreads: 0,
+        });
+    }
+    return tenantStates.get(tenantId);
+}
+
+function parseProfileLine(line, id) {
+    const trimmedLine = String(line).trim();
+    if (!trimmedLine) return null;
+
+    const separator = trimmedLine.match(/[:;,|\t]/);
+    let user = '';
+    let pass = '';
+    if (separator && separator.index > 0) {
+        user = trimmedLine.substring(0, separator.index).trim();
+        pass = trimmedLine.substring(separator.index + 1).trim();
+    } else {
+        const parts = trimmedLine.split(/\s{2,}|\s+/);
+        if (parts.length >= 2) {
+            user = parts[0].trim();
+            pass = parts.slice(1).join(' ').trim();
+        }
+    }
+
+    return user && pass ? { id, user, pass } : null;
 }
 
 const app = express();
-// Soporte para JSON y Texto Plano (para archivos TXT directos)
 app.use(express.json({ limit: '50mb' }));
-app.use(express.text({ limit: '50mb' })); 
-app.use(express.static('public')); 
+app.use(express.text({ limit: '50mb' }));
+app.use(express.static('public'));
 
 app.use('/api/v1', (req, res, next) => {
-    if (req.method === 'GET' && req.path === '/status') return next();
-
     const expectedKey = process.env.AUTOMATION_API_KEY;
+    const isHealthProbe = req.method === 'GET' && req.path === '/status' && !req.get('x-api-key');
+    if (isHealthProbe) return next();
+
     if (!expectedKey) {
         return res.status(503).json({ success: false, error: 'Automation API is not configured' });
     }
     if (req.get('x-api-key') !== expectedKey) {
         return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
+
+    const tenantId = req.get('x-tenant-id');
+    if (!tenantId || !/^[a-zA-Z0-9_-]{1,128}$/.test(tenantId)) {
+        return res.status(400).json({ success: false, error: 'Valid tenant context is required' });
+    }
+    req.tenantId = tenantId;
     next();
 });
 
-// Variables globales para el estado
-let globalMessage = "Hola, este es un mensaje automático de estudio.";
-
-/**
- * Endpoint para subir TXT de perfiles
- * Formato esperado: usuario:contraseña o usuario,contraseña
- */
 app.post('/api/v1/upload-profiles', (req, res) => {
-    // Si viene como texto plano o JSON
-    const rawData = typeof req.body === 'string' ? req.body : req.body.rawData;
-    
-    if (!rawData) return res.status(400).send('No hay datos recibidos');
+    const rawData = typeof req.body === 'string' ? req.body : req.body?.rawData;
+    if (!rawData) return res.status(400).json({ success: false, error: 'No hay datos recibidos' });
 
-    const lines = rawData.split(/\r?\n/);
-    const newProfiles = lines.map((line, index) => {
-        const trimmedLine = line.trim();
-        if (!trimmedLine) return null;
+    const profiles = String(rawData)
+        .replace(/^\uFEFF/, '')
+        .replace(/\u0000/g, '')
+        .split(/\r\n|\r|\n/)
+        .map((line, index) => parseProfileLine(line, index + 1))
+        .filter(Boolean);
 
-        let parts = [];
-        if (trimmedLine.includes(':')) {
-            const firstColon = trimmedLine.indexOf(':');
-            parts = [trimmedLine.substring(0, firstColon), trimmedLine.substring(firstColon + 1)];
-        } else if (trimmedLine.includes(',')) {
-            const firstComma = trimmedLine.indexOf(',');
-            parts = [trimmedLine.substring(0, firstComma), trimmedLine.substring(firstComma + 1)];
-        }
-
-        if (parts.length >= 2) {
-            return {
-                id: index + 1,
-                user: parts[0].trim(),
-                pass: parts[1].trim()
-            };
-        }
-        return null;
-    }).filter(p => p !== null);
-
-    // ESCRIBIR EL ARCHIVO DE INMEDIATO
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(newProfiles, null, 2), 'utf8');
-    
-    console.log(`\x1b[32m[SISTEMA] ¡EXITO! Se han guardado ${newProfiles.length} perfiles nuevos.\x1b[0m`);
-    res.json({ success: true, count: newProfiles.length });
+    writeProfiles(req.tenantId, profiles);
+    res.json({ success: true, count: profiles.length });
 });
 
-/**
- * Endpoint para actualizar el mensaje
- */
+app.post('/api/v1/agregar-usuario', (req, res) => {
+    const user = typeof req.body?.user === 'string' ? req.body.user.trim() : '';
+    const pass = typeof req.body?.pass === 'string' ? req.body.pass.trim() : '';
+    if (!user || !pass) {
+        return res.status(400).json({ success: false, error: 'Faltan usuario o contraseña' });
+    }
+
+    const currentProfiles = readProfiles(req.tenantId);
+    if (currentProfiles.some(profile => profile.user === user)) {
+        return res.status(409).json({ success: false, error: 'El usuario ya existe' });
+    }
+
+    const profile = { id: currentProfiles.length + 1, user, pass };
+    writeProfiles(req.tenantId, [...currentProfiles, profile]);
+    res.json({ success: true, profile: { id: profile.id, user: profile.user } });
+});
+
+app.post('/api/v1/agregar-lista', (req, res) => {
+    const text = typeof req.body?.text === 'string' ? req.body.text : '';
+    if (!text) return res.status(400).json({ success: false, error: 'Faltan datos de texto' });
+
+    const currentProfiles = readProfiles(req.tenantId);
+    const existingUsers = new Set(currentProfiles.map(profile => profile.user));
+    const newProfiles = [];
+    const invalidSamples = [];
+    let duplicateCount = 0;
+    let invalidCount = 0;
+
+    String(text).replace(/^\uFEFF/, '').replace(/\u0000/g, '').split(/\r\n|\r|\n/).forEach((line) => {
+        if (!String(line).trim()) return;
+        const profile = parseProfileLine(line, currentProfiles.length + newProfiles.length + 1);
+        if (!profile) {
+            invalidCount += 1;
+            if (invalidSamples.length < 8) invalidSamples.push(String(line).trim().substring(0, 80));
+            return;
+        }
+        if (existingUsers.has(profile.user)) {
+            duplicateCount += 1;
+            return;
+        }
+        existingUsers.add(profile.user);
+        newProfiles.push(profile);
+    });
+
+    if (newProfiles.length) writeProfiles(req.tenantId, [...currentProfiles, ...newProfiles]);
+    const totalNow = currentProfiles.length + newProfiles.length;
+    res.json({
+        success: newProfiles.length > 0 || (duplicateCount > 0 && invalidCount === 0),
+        imported: newProfiles.length,
+        duplicates: duplicateCount,
+        invalid: invalidCount,
+        invalidSamples,
+        totalNow,
+    });
+});
+
+app.post('/api/v1/limpiar-lista', (req, res) => {
+    const tenantDataDir = ensureTenantStorage(req.tenantId);
+    writeProfiles(req.tenantId, []);
+    fs.writeFileSync(path.join(tenantDataDir, '.last_id.txt'), '0', 'utf8');
+    res.json({ success: true, message: 'Lista limpiada correctamente', cleared: true });
+});
+
+app.post('/api/v1/login-guilla', async (req, res) => {
+    const user = typeof req.body?.user === 'string' ? req.body.user.trim() : '';
+    const pass = typeof req.body?.pass === 'string' ? req.body.pass.trim() : '';
+    if (!user || !pass) {
+        return res.status(400).json({ success: false, error: 'Faltan usuario o contraseña' });
+    }
+
+    try {
+        const profile = readProfiles(req.tenantId).find(candidate => candidate.user === user);
+        if (!profile) return res.status(404).json({ success: false, error: 'Perfil no encontrado' });
+
+        const tenantDataDir = ensureTenantStorage(req.tenantId);
+        const result = await AutomationEngine.runTask(
+            { ...profile, pass },
+            'Mensaje de prueba',
+            0,
+            1,
+            () => false,
+            tenantDataDir,
+            req.tenantId,
+        );
+        if (result.status !== 'SUCCESS') {
+            return res.status(500).json({ success: false, error: 'Error en el login' });
+        }
+
+        res.json({ success: true, message: 'Login exitoso y sesión guardada', profileUser: user });
+    } catch (error) {
+        console.error(`[SISTEMA] Error en login individual: ${error.message}`);
+        res.status(500).json({ success: false, error: 'Error interno' });
+    }
+});
+
 app.post('/api/v1/update-message', (req, res) => {
-    const { mensaje } = req.body;
-    globalMessage = mensaje;
-    res.json({ success: true, message: globalMessage });
+    const message = typeof req.body?.mensaje === 'string' ? req.body.mensaje.trim() : '';
+    if (!message) return res.status(400).json({ success: false, error: 'Mensaje requerido' });
+    const state = getTenantState(req.tenantId);
+    state.message = message;
+    res.json({ success: true, message: state.message });
 });
 
-/**
- * Ruta para disparar la automatización masiva en PARALELO
- */
-app.post('/api/v1/iniciar-automatizacion', async (req, res) => {
-    const requestedThreads = Number.parseInt(req.body?.threads, 10) || 3;
-    const threads = Math.max(1, Math.min(10, requestedThreads));
-    const currentProfiles = readProfiles();
-
-    if (currentProfiles.length === 0) {
-        return res.status(400).json({ success: false, error: 'No hay perfiles cargados' });
+app.post('/api/v1/iniciar-automatizacion', (req, res) => {
+    const state = getTenantState(req.tenantId);
+    if (state.running || state.stopping) {
+        return res.status(409).json({
+            success: false,
+            error: state.stopping ? 'La automatización se está deteniendo' : 'Ya existe una automatización en ejecución',
+        });
     }
 
-    console.log(`\n\x1b[35m>>> INICIANDO TRABAJO EN PARALELO: ${threads} VENTANAS\x1b[0m`);
-    console.log(`>>> Total perfiles: ${currentProfiles.length}`);
+    const threads = Math.max(1, Math.min(2, Number.parseInt(req.body?.threads, 10) || 1));
+    const profiles = readProfiles(req.tenantId);
+    if (!profiles.length) return res.status(400).json({ success: false, error: 'No hay perfiles cargados' });
 
-    res.json({ 
-        success: true, 
-        message: `Automatización iniciada con ${threads} hilos.`,
-        total: currentProfiles.length 
-    });
-
-    // Dividir los perfiles en grupos (chunks) según el número de hilos
-    const chunkSize = Math.ceil(currentProfiles.length / threads);
+    const chunkSize = Math.ceil(profiles.length / threads);
     const chunks = [];
-    for (let i = 0; i < currentProfiles.length; i += chunkSize) {
-        chunks.push(currentProfiles.slice(i, i + chunkSize));
+    for (let index = 0; index < profiles.length; index += chunkSize) {
+        chunks.push(profiles.slice(index, index + chunkSize));
     }
 
-    // Ejecutar cada grupo en su propia "línea" (paralelo)
+    const runId = ++state.runSequence;
+    state.activeRunId = runId;
+    state.running = true;
+    state.activeThreads = chunks.length;
+    const tenantDataDir = ensureTenantStorage(req.tenantId);
+    const tenantId = req.tenantId;
+
+    res.json({ success: true, message: `Automatización iniciada con ${threads} hilos.`, total: profiles.length });
+
     Promise.all(chunks.map(async (group, workerId) => {
-        console.log(`[HILO ${workerId + 1}] Iniciado con ${group.length} perfiles.`);
-        for (const perfil of group) {
-            await AutomationEngine.runTask(perfil, globalMessage);
+        for (const profile of group) {
+            if (state.activeRunId !== runId) break;
+            await AutomationEngine.runTask(
+                profile,
+                state.message,
+                workerId,
+                chunks.length,
+                () => state.activeRunId !== runId,
+                tenantDataDir,
+                tenantId,
+            );
         }
-    })).then(() => {
-        console.log('\n\x1b[32m>>> ¡TODOS LOS HILOS HAN FINALIZADO SU TRABAJO!\x1b[0m');
+    })).catch((error) => {
+        console.error(`[SISTEMA] Falló la ejecución del tenant ${tenantId}: ${error.message}`);
+    }).finally(() => {
+        if (state.activeRunId === runId) {
+            state.activeRunId = 0;
+            state.running = false;
+            state.activeThreads = 0;
+        }
     });
 });
 
-/**
- * Ruta de estado
- */
+app.post('/api/v1/detener-automatizacion', async (req, res) => {
+    const state = getTenantState(req.tenantId);
+    if (!state.running && !state.stopping) {
+        return res.json({ success: true, stopped: 0, message: 'La automatización ya estaba detenida' });
+    }
+
+    state.stopping = true;
+    state.activeRunId = 0;
+    try {
+        const stopped = await AutomationEngine.stopAll(req.tenantId);
+        state.running = false;
+        state.activeThreads = 0;
+        res.json({ success: true, stopped, message: 'Automatización detenida' });
+    } catch (error) {
+        console.error(`[SISTEMA] Error al detener automatización: ${error.message}`);
+        res.status(500).json({ success: false, error: 'No se pudo detener la automatización' });
+    } finally {
+        state.stopping = false;
+    }
+});
+
 app.get('/api/v1/status', (req, res) => {
-    res.json({ online: true, version: "1.0.0", profiles_loaded: readProfiles().length });
+    if (!req.tenantId) {
+        return res.json({ online: true, version: '1.2.0' });
+    }
+    const state = getTenantState(req.tenantId);
+    res.json({
+        online: true,
+        version: '1.2.0',
+        profiles_loaded: readProfiles(req.tenantId).length,
+        running: state.running,
+        stopping: state.stopping,
+        threads: state.activeThreads,
+        browsers: AutomationEngine.getActiveBrowserCount(req.tenantId),
+    });
 });
 
 const PORT = Number.parseInt(process.env.PORT, 10) || 3002;
-
-const server = app.listen(PORT, () => {
-    console.log(`\n\x1b[36m**************************************************`);
-    console.log(`*  SERVIDOR DE AUTOMATIZACIÓN ACTIVADO           *`);
-    console.log(`*  Puerto: ${PORT}                                  *`);
-    console.log(`*  URL interna: http://0.0.0.0:${PORT}         *`);
-    console.log(`**************************************************\x1b[0m\n`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[SISTEMA] Servidor de automatización activo en el puerto ${PORT}`);
 });
 
-// Manejo de errores de puerto ocupado
-server.on('error', (e) => {
-    if (e.code === 'EADDRINUSE') {
-        console.error(`\x1b[31m[ERROR] El puerto ${PORT} está ocupado. Intenta cerrar otros programas.\x1b[0m`);
-    } else {
-        console.error(`\x1b[31m[ERROR DEL SERVIDOR] ${e.message}\x1b[0m`);
-    }
+server.on('error', (error) => {
+    console.error(`[SISTEMA] Error del servidor: ${error.message}`);
 });
 
-// Captura de errores inesperados para que no se cierre en silencio
-process.on('uncaughtException', (err) => {
-    console.error(`\x1b[31m[ERROR CRÍTICO] Ocurrió un error inesperado:\x1b[0m`, err.message);
-    console.error(err.stack);
+process.on('uncaughtException', (error) => {
+    console.error(`[SISTEMA] Error no controlado: ${error.message}`);
 });

@@ -1,0 +1,9 @@
+services:
+  frontend:
+    ports:
+      - "127.0.0.1:4173:4173"
+  automation:
+    environment:
+      NOVNC_PORT: "6081"
+    ports:
+      - "127.0.0.1:6081:6081"

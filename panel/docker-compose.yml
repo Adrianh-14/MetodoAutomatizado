@@ -67,6 +67,7 @@ services:
       PROFILE_DATA_FILE: /app/data/config.json
       AUTOMATION_DATA_DIR: /app/data
       AUTOMATION_API_KEY: ${AUTOMATION_API_KEY:?Define AUTOMATION_API_KEY en Dokploy}
+      AUTOMATION_LEGACY_TENANT_ID: ${AUTOMATION_LEGACY_TENANT_ID:-}
     expose:
       - "3002"
     shm_size: "1gb"

@@ -21,6 +21,7 @@ No se publican puertos directamente en el host. El frontend usa exclusivamente `
 - `JWT_SECRET` y `JWT_REFRESH_SECRET`: secretos diferentes de al menos 32 caracteres.
 - `FRONTEND_URL`: URL pública exacta, por ejemplo `https://panel.example.com`.
 - `AUTOMATION_API_KEY`: clave interna aleatoria para comunicar backend y Playwright.
+- `AUTOMATION_LEGACY_TENANT_ID`: opcional; UUID del tenant al que pertenecen los perfiles globales de una instalación anterior.
 - `INITIAL_ADMIN_EMAIL` y `INITIAL_ADMIN_PASSWORD`: acceso administrador inicial.
 - `SEED_DEMO_DATA=false`: evita crear los 500 registros de demostración.
 
@@ -35,7 +36,9 @@ Si la contraseña de PostgreSQL contiene caracteres reservados de URL, debe codi
 ## Persistencia
 
 - `postgres_data`: base de datos PostgreSQL.
-- `automation_data`: perfiles cargados y capturas de error de Playwright.
+- `automation_data`: perfiles, sesiones y capturas de Playwright separados en un directorio por tenant.
+
+Al actualizar una instalación existente, define temporalmente `AUTOMATION_LEGACY_TENANT_ID` con el UUID del tenant propietario. En su primer acceso se copiará el antiguo `config.json` a su almacenamiento aislado. Sin esa variable, el archivo anterior se conserva pero no se asigna automáticamente a ningún tenant para evitar una filtración accidental.
 
 Ambos son volúmenes nombrados, compatibles con las copias de seguridad de volúmenes de Dokploy.
 

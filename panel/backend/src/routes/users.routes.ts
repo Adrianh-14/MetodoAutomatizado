@@ -9,6 +9,7 @@ const usersController = new UsersController();
 router.use(authMiddleware);
 router.use(adminOnly);
 
+router.get('/tenants', usersController.getTenants);
 router.get('/', usersController.getUsers);
 router.post('/', usersController.createUser);
 router.put('/:id', usersController.updateUser);

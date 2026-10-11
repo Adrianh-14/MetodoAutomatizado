@@ -1,35 +1,95 @@
 import { Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { AuthenticatedRequest } from '../types';
 import { hashPassword } from '../utils/password';
 
 const prisma = new PrismaClient();
+const MANAGEABLE_ROLES = new Set(['admin', 'user']);
+
+function normalizeEmail(value: unknown): string {
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && value.length <= 254;
+}
+
+function normalizeSlug(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
+
+function isValidPassword(value: unknown): value is string {
+  return typeof value === 'string' && value.length >= 8 && value.length <= 128;
+}
+
+function publicUserSelect(): Prisma.UserSelect {
+  return {
+    id: true,
+    email: true,
+    name: true,
+    role: true,
+    isActive: true,
+    createdAt: true,
+    updatedAt: true,
+    tenant: { select: { id: true, name: true, slug: true } },
+  };
+}
 
 export class UsersController {
-  async getUsers(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async getTenants(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const tenantId = req.user?.tenantId;
-      const role = req.user?.role;
-      if (!tenantId) {
+      if (!req.user) {
         res.status(401).json({ error: 'Unauthorized' });
         return;
       }
 
-      const whereClause: any = role === 'superadmin' ? {} : { tenantId, role: { not: 'superadmin' } };
+      const where = req.user.role === 'superadmin'
+        ? { isActive: true }
+        : { id: req.user.tenantId, isActive: true };
 
-      const users = await prisma.user.findMany({
-        where: whereClause,
+      const tenants = await prisma.tenant.findMany({
+        where,
         select: {
           id: true,
-          email: true,
           name: true,
-          role: true,
+          slug: true,
           isActive: true,
-          createdAt: true,
-          updatedAt: true,
-          tenant: { select: { name: true } }
+          _count: { select: { users: true } },
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { name: 'asc' },
+      });
+
+      res.json(tenants);
+    } catch (error) {
+      console.error('Error fetching tenants:', error);
+      res.status(500).json({ error: 'Failed to fetch tenants' });
+    }
+  }
+
+  async getUsers(req: AuthenticatedRequest, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const requestedTenantId = typeof req.query.tenantId === 'string' ? req.query.tenantId : undefined;
+      const where: Prisma.UserWhereInput = req.user.role === 'superadmin'
+        ? {
+            role: { not: 'superadmin' },
+            ...(requestedTenantId ? { tenantId: requestedTenantId } : {}),
+          }
+        : { tenantId: req.user.tenantId, role: { not: 'superadmin' } };
+
+      const users = await prisma.user.findMany({
+        where,
+        select: publicUserSelect(),
+        orderBy: [{ tenant: { name: 'asc' } }, { createdAt: 'desc' }],
       });
 
       res.json(users);
@@ -41,79 +101,106 @@ export class UsersController {
 
   async createUser(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const currentUserRole = req.user?.role;
-      const currentUserTenantId = req.user?.tenantId;
-      
-      if (!currentUserRole || !currentUserTenantId) {
+      if (!req.user) {
         res.status(401).json({ error: 'Unauthorized' });
         return;
       }
 
-      const { email, password, name, role, tenantName } = req.body;
+      const email = normalizeEmail(req.body.email);
+      const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+      const password = req.body.password;
+      const requestedRole = typeof req.body.role === 'string' ? req.body.role : 'user';
 
-      if (!email || !password || !name) {
-        res.status(400).json({ error: 'Email, password, and name are required' });
+      if (!isValidEmail(email) || !name || !isValidPassword(password)) {
+        res.status(400).json({
+          error: 'Name, a valid email, and a password between 8 and 128 characters are required',
+        });
         return;
       }
 
-      const normalizedEmail = email.trim().toLowerCase();
+      if (!MANAGEABLE_ROLES.has(requestedRole)) {
+        res.status(400).json({ error: 'Role must be admin or user' });
+        return;
+      }
 
-      const existingUser = await prisma.user.findUnique({
-        where: { email: normalizedEmail }
-      });
-
+      const existingUser = await prisma.user.findUnique({ where: { email } });
       if (existingUser) {
-        res.status(400).json({ error: 'User with this email already exists' });
+        res.status(409).json({ error: 'User with this email already exists' });
         return;
       }
 
-      const passwordHash = await hashPassword(password);
-      
-      let newTenantId = currentUserTenantId;
-      let newUserRole = role === 'admin' ? 'admin' : 'user';
+      let tenantId = req.user.tenantId;
+      const targetTenantId = typeof req.body.tenantId === 'string' ? req.body.tenantId.trim() : '';
+      const tenantName = typeof req.body.tenantName === 'string' ? req.body.tenantName.trim() : '';
 
-      if (currentUserRole === 'superadmin' && tenantName) {
-        // Create new tenant
-        let slug = tenantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-        if (!slug) slug = `tenant-${Date.now()}`;
-        
-        let targetTenant = await prisma.tenant.findUnique({ where: { slug } });
-        if (!targetTenant) {
-          targetTenant = await prisma.tenant.create({
-            data: {
-              name: tenantName,
-              slug,
-              isActive: true
-            }
+      if (req.user.role === 'superadmin') {
+        if (tenantName) {
+          const slug = normalizeSlug(tenantName);
+          if (!slug) {
+            res.status(400).json({ error: 'Tenant name is invalid' });
+            return;
+          }
+
+          const existingTenant = await prisma.tenant.findUnique({ where: { slug } });
+          if (existingTenant) {
+            res.status(409).json({ error: 'A tenant with this name already exists; select it from the list' });
+            return;
+          }
+
+          const passwordHash = await hashPassword(password);
+          const newUser = await prisma.$transaction(async (tx) => {
+            const tenant = await tx.tenant.create({
+              data: { name: tenantName, slug, isActive: true },
+            });
+
+            return tx.user.create({
+              data: {
+                tenantId: tenant.id,
+                email,
+                name,
+                passwordHash,
+                role: 'admin',
+                isActive: true,
+              },
+              select: publicUserSelect(),
+            });
           });
+
+          res.status(201).json(newUser);
+          return;
         }
-        newTenantId = targetTenant.id;
-        newUserRole = 'admin'; // Always admin for new company
+
+        if (!targetTenantId) {
+          res.status(400).json({ error: 'Select an existing tenant or enter a new tenant name' });
+          return;
+        }
+
+        const targetTenant = await prisma.tenant.findFirst({
+          where: { id: targetTenantId, isActive: true },
+          select: { id: true },
+        });
+        if (!targetTenant) {
+          res.status(404).json({ error: 'Tenant not found or inactive' });
+          return;
+        }
+        tenantId = targetTenant.id;
       }
 
-      if (currentUserRole === 'admin' && role === 'superadmin') {
-         res.status(403).json({ error: 'Cannot create superadmin' });
-         return;
+      if (req.user.role === 'admin' && targetTenantId && targetTenantId !== req.user.tenantId) {
+        res.status(403).json({ error: 'Admins can only add users to their own tenant' });
+        return;
       }
 
       const newUser = await prisma.user.create({
         data: {
-          tenantId: newTenantId,
-          email: normalizedEmail,
+          tenantId,
+          email,
           name,
-          passwordHash,
-          role: newUserRole,
+          passwordHash: await hashPassword(password),
+          role: requestedRole,
           isActive: true,
         },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          isActive: true,
-          createdAt: true,
-          tenant: { select: { name: true } }
-        }
+        select: publicUserSelect(),
       });
 
       res.status(201).json(newUser);
@@ -125,32 +212,60 @@ export class UsersController {
 
   async updateUser(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const tenantId = req.user?.tenantId;
-      const currentUserRole = req.user?.role;
-      if (!tenantId || !currentUserRole) {
+      if (!req.user) {
         res.status(401).json({ error: 'Unauthorized' });
         return;
       }
 
       const { id } = req.params;
-      const { name, password, email } = req.body;
-
-      const whereClause: any = currentUserRole === 'superadmin' ? { id } : { id, tenantId, role: { not: 'superadmin' } };
-      const user = await prisma.user.findFirst({
-        where: whereClause
-      });
+      const where: Prisma.UserWhereInput = req.user.role === 'superadmin'
+        ? { id, role: { not: 'superadmin' } }
+        : { id, tenantId: req.user.tenantId, role: { not: 'superadmin' } };
+      const user = await prisma.user.findFirst({ where });
 
       if (!user) {
         res.status(404).json({ error: 'User not found' });
         return;
       }
 
-      const updateData: any = {};
-      
-      if (name) updateData.name = name;
-      if (email) updateData.email = email.trim().toLowerCase();
-      if (password) {
-        updateData.passwordHash = await hashPassword(password);
+      const updateData: Prisma.UserUpdateInput = {};
+      if (typeof req.body.name === 'string' && req.body.name.trim()) {
+        updateData.name = req.body.name.trim();
+      }
+
+      const email = normalizeEmail(req.body.email);
+      if (email && email !== user.email) {
+        if (!isValidEmail(email)) {
+          res.status(400).json({ error: 'Email is invalid' });
+          return;
+        }
+        const existingEmail = await prisma.user.findUnique({ where: { email } });
+        if (existingEmail) {
+          res.status(409).json({ error: 'Email already in use' });
+          return;
+        }
+        updateData.email = email;
+      }
+
+      if (req.body.password !== undefined) {
+        if (!isValidPassword(req.body.password)) {
+          res.status(400).json({ error: 'Password must contain between 8 and 128 characters' });
+          return;
+        }
+        updateData.passwordHash = await hashPassword(req.body.password);
+      }
+
+      if (req.body.role !== undefined) {
+        if (!MANAGEABLE_ROLES.has(req.body.role)) {
+          res.status(400).json({ error: 'Role must be admin or user' });
+          return;
+        }
+
+        if (id === req.user.userId && req.body.role !== user.role) {
+          res.status(400).json({ error: 'You cannot change your own role' });
+          return;
+        }
+        updateData.role = req.body.role;
       }
 
       if (Object.keys(updateData).length === 0) {
@@ -158,28 +273,10 @@ export class UsersController {
         return;
       }
 
-      // If email is being updated, check if it's already taken
-      if (updateData.email && updateData.email !== user.email) {
-        const existingEmail = await prisma.user.findUnique({
-          where: { email: updateData.email }
-        });
-        if (existingEmail) {
-          res.status(400).json({ error: 'Email already in use' });
-          return;
-        }
-      }
-
       const updatedUser = await prisma.user.update({
         where: { id },
         data: updateData,
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          isActive: true,
-          updatedAt: true,
-        }
+        select: publicUserSelect(),
       });
 
       res.json(updatedUser);
@@ -191,28 +288,21 @@ export class UsersController {
 
   async toggleBlock(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const tenantId = req.user?.tenantId;
-      const adminId = req.user?.userId;
-      const currentUserRole = req.user?.role;
-      
-      if (!tenantId || !currentUserRole) {
+      if (!req.user) {
         res.status(401).json({ error: 'Unauthorized' });
         return;
       }
 
       const { id } = req.params;
-
-      // Prevent admin from blocking themselves
-      if (id === adminId) {
+      if (id === req.user.userId) {
         res.status(400).json({ error: 'You cannot block your own account' });
         return;
       }
 
-      const whereClause: any = currentUserRole === 'superadmin' ? { id } : { id, tenantId, role: { not: 'superadmin' } };
-      const user = await prisma.user.findFirst({
-        where: whereClause
-      });
-
+      const where: Prisma.UserWhereInput = req.user.role === 'superadmin'
+        ? { id, role: { not: 'superadmin' } }
+        : { id, tenantId: req.user.tenantId, role: { not: 'superadmin' } };
+      const user = await prisma.user.findFirst({ where });
       if (!user) {
         res.status(404).json({ error: 'User not found' });
         return;
@@ -221,14 +311,8 @@ export class UsersController {
       const updatedUser = await prisma.user.update({
         where: { id },
         data: { isActive: !user.isActive },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          isActive: true,
-        }
+        select: publicUserSelect(),
       });
-
       res.json(updatedUser);
     } catch (error) {
       console.error('Error toggling user block status:', error);
@@ -238,50 +322,31 @@ export class UsersController {
 
   async deleteUser(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const tenantId = req.user?.tenantId;
-      const adminId = req.user?.userId;
-      const currentUserRole = req.user?.role;
-
-      if (!tenantId || !currentUserRole) {
+      if (!req.user) {
         res.status(401).json({ error: 'Unauthorized' });
         return;
       }
 
       const { id } = req.params;
-
-      // Prevent admin from deleting themselves
-      if (id === adminId) {
+      if (id === req.user.userId) {
         res.status(400).json({ error: 'You cannot delete your own account' });
         return;
       }
 
-      const whereClause: any = currentUserRole === 'superadmin' ? { id } : { id, tenantId, role: { not: 'superadmin' } };
-      const user = await prisma.user.findFirst({
-        where: whereClause
-      });
-
+      const where: Prisma.UserWhereInput = req.user.role === 'superadmin'
+        ? { id, role: { not: 'superadmin' } }
+        : { id, tenantId: req.user.tenantId, role: { not: 'superadmin' } };
+      const user = await prisma.user.findFirst({ where });
       if (!user) {
         res.status(404).json({ error: 'User not found' });
         return;
       }
 
-      // Execute deletion within a transaction
       await prisma.$transaction(async (tx) => {
-        // 1. Set downloadedBy to null in Cookies
-        await tx.cookie.updateMany({
-          where: { downloadedBy: id },
-          data: { downloadedBy: null }
-        });
-
-        // 2. Delete DownloadLogs
-        await tx.downloadLog.deleteMany({
-          where: { userId: id }
-        });
-
-        // 3. Delete the user
-        await tx.user.delete({
-          where: { id }
-        });
+        await tx.cookie.updateMany({ where: { downloadedBy: id }, data: { downloadedBy: null } });
+        await tx.downloadLog.deleteMany({ where: { userId: id } });
+        await tx.form.deleteMany({ where: { createdById: id } });
+        await tx.user.delete({ where: { id } });
       });
 
       res.json({ success: true, message: 'User successfully deleted' });

@@ -81,8 +81,14 @@ const DashboardPage = () => {
           <div className="card-header">
             <h2 className="card-title">TOP DISTRIBUCIÓN GEOGRÁFICA</h2>
           </div>
-          <div style={{ height: 300 }}>
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="chart-viewport">
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+              minWidth={0}
+              minHeight={300}
+              initialDimension={{ width: 1, height: 300 }}
+            >
               <BarChart data={countries} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
                 <XAxis dataKey="countryCode" stroke="var(--text-secondary)" tick={{fontFamily: 'var(--font-mono)', fontSize: 11}} />
                 <YAxis stroke="var(--text-secondary)" tick={{fontFamily: 'var(--font-mono)', fontSize: 11}} />
